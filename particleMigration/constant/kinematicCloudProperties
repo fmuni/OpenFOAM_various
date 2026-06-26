@@ -1,0 +1,172 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2512                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      kinematicCloudProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "d.H"
+solution
+{
+    active          true;
+    coupled         true;
+    transient       yes;
+    cellValueSourceCorrection off;
+
+    interpolationSchemes
+    {
+        rho.liquid         cell;
+        U.liquid           cellPoint;
+        mu.liquid          cell;
+        curlUcDt           cellPoint;
+        DUcDt              cellPoint;
+    }
+
+    integrationSchemes
+    {
+        U               Euler;
+    }
+
+    sourceTerms
+    {
+        schemes
+        {
+            U semiImplicit 1;
+        }
+    }
+}
+
+constantProperties
+{
+    parcelTypeId 1;
+
+    rhoMin          1e-15;
+    minParcelMass   1e-15;
+
+    rho0            1050;
+    youngsModulus   1e5;
+    poissonsRatio   0.35;
+
+    constantVolume  false;
+
+    alphaMax        0.99;
+}
+
+subModels
+{
+    particleForces
+    {
+        ErgunWenYuDrag
+        {
+            alphac alpha.liquid;
+        }
+        SaffmanMeiLiftForce
+        {
+            U U.liquid;
+        }
+        pressureGradient
+        {
+            U U.liquid;
+        }
+        virtualMass
+        {
+           Cvm 0.5;
+        }
+    	gravity;   
+    }
+
+    injectionModels
+    {
+        model1
+        {
+            type            manualInjection;
+            massTotal       0;
+            parcelBasisType fixed;
+            nParticle       1;
+            SOI             0;
+            positionsFile   "kinematicCloudPositions";
+            U0              (0 0 0);
+            sizeDistribution
+            {
+                type        fixedValue;
+                fixedValueDistribution
+                {
+                    value   $dp;
+                }
+            }
+        }
+    }
+
+    dispersionModel none;
+
+    patchInteractionModel localInteraction;
+
+    localInteractionCoeffs
+    {
+        patches
+        (
+            "(walls)"
+            {
+                type rebound;
+                e    0.97;
+                mu   0.09;
+            }
+        );
+    }
+
+    surfaceFilmModel none;
+
+    collisionModel pairCollision;
+
+    pairCollisionCoeffs
+    {
+        maxInteractionDistance  $idist;
+
+        writeReferredParticleCloud no;
+
+        pairModel pairSpringSliderDashpot;
+
+        pairSpringSliderDashpotCoeffs
+        {
+            useEquivalentSize   no;
+            alpha               0.02;
+            b                   1.5;
+            mu                  0.10;
+            cohesionEnergyDensity 0;
+            collisionResolutionSteps 5;
+        };
+
+        wallModel wallSpringSliderDashpot;
+
+        wallSpringSliderDashpotCoeffs
+        {
+            useEquivalentSize no;
+            collisionResolutionSteps 5;
+            youngsModulus   1e5;
+            poissonsRatio   0.23;
+            alpha           0.01;
+            b               1.5;
+            mu              0.09;
+            cohesionEnergyDensity 0;
+        };
+
+        U     U.liquid;
+    }
+
+    stochasticCollisionModel none;
+}
+
+
+cloudFunctions
+{}
+
+
+// ************************************************************************* //
